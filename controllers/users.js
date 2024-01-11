@@ -36,9 +36,9 @@ userRouter.get('/:id', async (req, res) => {
 });
 
 userRouter.post('/', async (req, res) => {
-  const { email, password } = req.body;
+  const { fullname, email, password } = req.body;
 
-  if (!email || !password) {
+  if (!fullname || !email || !password) {
     res.status(400).json({
       error: 'All fields are required',
     });
@@ -51,6 +51,7 @@ userRouter.post('/', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, salt);
     const newUser = new User({
+      fullname,
       email,
       passwordHash,
     });

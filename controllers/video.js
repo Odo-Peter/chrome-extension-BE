@@ -14,9 +14,13 @@ const videoRouter = require('express').Router();
 const fs = require('fs');
 const multer = require('multer');
 const uploadMiddleware = multer({ dest: 'uploads/' });
+const path = require('path');
 
 const Video = require('../Models/Video');
 const { userExtractor } = require('../utils/middleware');
+const { convertToWav } = require('../utils/deepgram');
+
+// const { convert } = require('../utils/deepgram');
 
 videoRouter.get('/', async (req, res) => {
   const videos = await Video.find({}).populate('user', {
@@ -31,6 +35,27 @@ videoRouter.get('/:id', async (req, res) => {
   const video = await Video.findById(id);
 
   if (!video) res.status(404).json({ error: 'File not found' });
+
+  const absolutePath =
+    video?.videoPath.split('\\')[video?.videoPath.split('\\').length - 1];
+
+  // const createFileSync = async () => {
+  //   const filePath = fs.openSync('audios/test.wav', 'w');
+  //   console.log(filePath);
+  // };
+
+  // console.log(fs.openSync('audios/test.wav', 'w'));
+  const inputFilePath = path.resolve(
+    __dirname,
+    '../uploads',
+    '8b23d7d8b2a3afedf2384b9f064e6301.webm'
+  ); // Update with the correct path to your .webm file
+  const outputFilePath = path.resolve(__dirname, 'output.mp3');
+
+  convertToWav(inputFilePath, outputFilePath);
+
+  // console.log(newWav);
+  // C:\Users\USER\Desktop\Personal Projects\chrome-extension-server\uploads\8b23d7d8b2a3afedf2384b9f064e6301.webm
 
   res.status(200).json(video);
 });
@@ -60,6 +85,8 @@ videoRouter.post(
       videoPath,
       user: user.id,
     });
+
+    console.log(videoPath);
 
     const savedVideo = await newVideo.save();
     user.videos = user.videos.concat(savedVideo._id);
