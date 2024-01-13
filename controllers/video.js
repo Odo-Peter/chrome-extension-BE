@@ -6,7 +6,7 @@
  * adds the created user to the database
  *
  * An express router (videoRouter) that routes to a /video endpoints
- * uses bcryptjs for auhtnetication
+ * uses bcryptjs for authentication
  */
 
 const videoRouter = require('express').Router();
@@ -17,10 +17,12 @@ const uploadMiddleware = multer({ dest: 'uploads/' });
 const path = require('path');
 
 const Video = require('../Models/Video');
-const { userExtractor } = require('../utils/middleware');
-const { convertToWav } = require('../utils/deepgram');
 
-// const { convert } = require('../utils/deepgram');
+const { userExtractor } = require('../utils/middleware');
+const { convertToWav, transcribeLocalVideo } = require('../utils/deepgram');
+
+const { createClient } = require('@deepgram/sdk');
+const deepgram = createClient(process.env.DEEPGRAM_API_KEY);
 
 videoRouter.get('/', async (req, res) => {
   const videos = await Video.find({}).populate('user', {
@@ -39,25 +41,15 @@ videoRouter.get('/:id', async (req, res) => {
   const absolutePath =
     video?.videoPath.split('\\')[video?.videoPath.split('\\').length - 1];
 
-  // const createFileSync = async () => {
-  //   const filePath = fs.openSync('audios/test.wav', 'w');
-  //   console.log(filePath);
-  // };
+  const inputFilePath = path.resolve(__dirname, '../uploads', absolutePath);
+  // const outputFilePath = path.resolve(
+  //   __dirname,
+  //   '../wav/8b23d7d8b2a3afedf2384b9f064e6301.wav'
+  // );
 
-  // console.log(fs.openSync('audios/test.wav', 'w'));
-  const inputFilePath = path.resolve(
-    __dirname,
-    '../uploads',
-    '8b23d7d8b2a3afedf2384b9f064e6301.webm'
-  ); // Update with the correct path to your .webm file
-  const outputFilePath = path.resolve(__dirname, 'output.mp3');
+  const transcript = await transcribeLocalVideo(inputFilePath);
 
-  convertToWav(inputFilePath, outputFilePath);
-
-  // console.log(newWav);
-  // C:\Users\USER\Desktop\Personal Projects\chrome-extension-server\uploads\8b23d7d8b2a3afedf2384b9f064e6301.webm
-
-  res.status(200).json(video);
+  res.status(200).json(transcript);
 });
 
 videoRouter.post(
@@ -79,6 +71,9 @@ videoRouter.post(
       originalname.split('.')[originalname.split('.').length - 1];
     const videoPath = path + '.' + fileExtension;
     fs.renameSync(path, videoPath);
+
+    const absolutePath =
+      videoPath.split('\\')[videoPath.split('\\').length - 1];
 
     const newVideo = new Video({
       title,
