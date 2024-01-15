@@ -14,15 +14,12 @@ const videoRouter = require('express').Router();
 const fs = require('fs');
 const multer = require('multer');
 const uploadMiddleware = multer({ dest: 'uploads/' });
-const path = require('path');
+const pathRoute = require('path');
 
 const Video = require('../Models/Video');
 
 const { userExtractor } = require('../utils/middleware');
-const { convertToWav, transcribeLocalVideo } = require('../utils/deepgram');
-
-const { createClient } = require('@deepgram/sdk');
-const deepgram = createClient(process.env.DEEPGRAM_API_KEY);
+const { transcribeLocalVideo } = require('../utils/deepgram');
 
 videoRouter.get('/', async (req, res) => {
   const videos = await Video.find({}).populate('user', {
@@ -38,18 +35,7 @@ videoRouter.get('/:id', async (req, res) => {
 
   if (!video) res.status(404).json({ error: 'File not found' });
 
-  const absolutePath =
-    video?.videoPath.split('\\')[video?.videoPath.split('\\').length - 1];
-
-  const inputFilePath = path.resolve(__dirname, '../uploads', absolutePath);
-  // const outputFilePath = path.resolve(
-  //   __dirname,
-  //   '../wav/8b23d7d8b2a3afedf2384b9f064e6301.wav'
-  // );
-
-  const transcript = await transcribeLocalVideo(inputFilePath);
-
-  res.status(200).json(transcript);
+  res.status(200).json(video);
 });
 
 videoRouter.post(
@@ -75,19 +61,39 @@ videoRouter.post(
     const absolutePath =
       videoPath.split('\\')[videoPath.split('\\').length - 1];
 
-    const newVideo = new Video({
-      title,
-      videoPath,
-      user: user.id,
-    });
+    const inputFilePath = pathRoute.resolve(
+      __dirname,
+      '../uploads',
+      absolutePath
+    );
 
-    console.log(videoPath);
+    const wavPath = pathRoute.resolve(
+      __dirname,
+      '../uploads',
+      `${absolutePath.split('.')[0]}.wav`
+    );
 
-    const savedVideo = await newVideo.save();
-    user.videos = user.videos.concat(savedVideo._id);
-    await user.save();
+    const transcript = await transcribeLocalVideo(inputFilePath);
 
-    res.status(201).json(savedVideo);
+    try {
+      if (transcript !== 'Transcribing, please wait') {
+        const newVideo = new Video({
+          title,
+          videoPath,
+          transcript,
+          user: user.id,
+        });
+        fs.unlinkSync(wavPath);
+
+        const savedVideo = await newVideo.save();
+        user.videos = user.videos.concat(savedVideo._id);
+        await user.save();
+
+        res.status(201).json(savedVideo);
+      }
+    } catch (error) {
+      console.log(error);
+    }
   }
 );
 
@@ -112,18 +118,35 @@ videoRouter.post(
 //   res.json(updatedTodo);
 // });
 
-// videoRouter.delete('/:id', userExtractor, async (req, res) => {
-//   const { id } = req.params;
-//   const user = req.user;
+videoRouter.delete('/:id', userExtractor, async (req, res) => {
+  const { id } = req.params;
+  const user = req.user;
 
-//   const todo = await Todo.findById(id);
+  const video = await Video.findById(id);
 
-//   if (!(todo.user.toString() === user.id.toString())) {
-//     return res.status(405).json({ error: 'Permission Denied' });
-//   }
+  if (!video) {
+    res.status(404).json({ error: 'Not Found' });
+  }
 
-//   await Todo.findByIdAndDelete(id);
-//   res.status(201).end();
-// });
+  if (!(video.user.toString() === user.id.toString())) {
+    res.status(405).json({ error: 'Permission Denied' });
+  }
+
+  const videoFilePath =
+    video?.videoPath.split('\\')[video?.videoPath.split('\\').length - 1];
+
+  const unlinkSyncVideo = pathRoute.resolve(
+    __dirname,
+    '../uploads',
+    videoFilePath
+  );
+
+  // console.log(videoFilePath);
+
+  await Video.findByIdAndDelete(id);
+
+  fs.unlinkSync(unlinkSyncVideo);
+  res.status(204).end();
+});
 
 module.exports = videoRouter;

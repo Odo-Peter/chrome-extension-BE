@@ -19,6 +19,7 @@ const videoSchema = new mongoose.Schema(
   {
     title: String,
     videoPath: String,
+    transcript: String,
     date: { type: Date, default: Date.now },
     user: {
       type: mongoose.Schema.Types.ObjectId,

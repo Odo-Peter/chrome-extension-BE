@@ -1,5 +1,6 @@
 const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs');
+const path = require('path');
 
 const { createClient } = require('@deepgram/sdk');
 const deepgram = createClient(process.env.DEEPGRAM_API_KEY);
@@ -12,23 +13,29 @@ function convertToWav(filePath) {
     .on('error', (err, stdout, stderr) => {
       console.error('Error:', err);
     })
-    .save(`${filePath}.wav`);
+    .save(`${filePath.split('.')[0]}.wav`);
 }
 
 async function transcribeLocalVideo(filePath) {
   convertToWav(filePath);
 
-  const { result, error } = await deepgram.listen.prerecorded.transcribeFile(
-    fs.createReadStream(filePath),
-    {
-      model: 'nova',
-    }
-  );
+  const wavPath = `${filePath.split('.')[0]}.wav`;
+  const pathPresent = path.resolve(__dirname, '../uploads', wavPath);
 
-  if (error) {
-    return `An error occurred: ${error}`;
+  if (pathPresent) {
+    const { result, error } = await deepgram.listen.prerecorded.transcribeFile(
+      fs.createReadStream(filePath),
+      {
+        model: 'nova',
+      }
+    );
+
+    if (error) {
+      return `An error occurred: ${error}`;
+    }
+    return result.results.channels[0].alternatives[0].transcript;
   }
-  return result.results;
+  return 'Transcribing, please wait';
 }
 
 module.exports = { transcribeLocalVideo };
