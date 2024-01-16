@@ -67,22 +67,23 @@ videoRouter.post(
       absolutePath
     );
 
-    const wavPath = pathRoute.resolve(
-      __dirname,
-      '../uploads',
-      `${absolutePath.split('.')[0]}.wav`
-    );
-
     const transcript = await transcribeLocalVideo(inputFilePath);
 
     try {
-      if (transcript !== 'Transcribing, please wait') {
+      if (transcript !== 'Transcribing, please wait' || transcript) {
         const newVideo = new Video({
           title,
           videoPath,
           transcript,
           user: user.id,
         });
+
+        const wavPath = pathRoute.resolve(
+          __dirname,
+          '../uploads',
+          `${absolutePath.split('.')[0]}.wav`
+        );
+
         fs.unlinkSync(wavPath);
 
         const savedVideo = await newVideo.save();

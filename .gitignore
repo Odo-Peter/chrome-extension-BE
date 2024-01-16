@@ -2,6 +2,9 @@
 /node_modules
 
 
+#uploads - dev
+/uploads
+
 # misc
 .env
 .env.development.local

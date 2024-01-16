@@ -33,6 +33,7 @@ async function transcribeLocalVideo(filePath) {
     if (error) {
       return `An error occurred: ${error}`;
     }
+
     return result.results.channels[0].alternatives[0].transcript;
   }
   return 'Transcribing, please wait';
