@@ -94,6 +94,7 @@ videoRouter.post(
       }
     } catch (error) {
       console.log(error);
+      fs.unlinkSync(inputFilePath);
     }
   }
 );
